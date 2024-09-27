@@ -1,23 +1,46 @@
-import json
-from collections import defaultdict
+import modin.pandas as mpd
+import re
 from typing import List, Tuple
-from emoji import demojize, UNICODE_EMOJI_ENGLISH
-import heapq
 
-def extract_emojis(text: str) -> List[str]:
-    return [char for char in text if char in UNICODE_EMOJI_ENGLISH]
 
 def q2_memory(file_path: str) -> List[Tuple[str, int]]:
-    emoji_counter = defaultdict(int)
-    
-    with open(file_path, 'r', encoding='utf-8') as file:
-        for line in file:
-            tweet = json.loads(line)
-            content = tweet.get('content', '')
-            emojis = extract_emojis(content)
-            for emoji_char in emojis:
-                emoji_counter[emoji_char] += 1
-    
-    # Use a heap to find top 10 emojis
-    top_10_emojis = heapq.nlargest(10, emoji_counter.items(), key=lambda x: x[1])
-    return top_10_emojis
+    """Function to get the top 10 most used emojis with their counts using Modin."""
+    try:
+        def extract_emojis(text: str) -> List[str]:
+            """Function to extract emojis from text."""
+            emoji_pattern = re.compile(
+            "[" 
+            u"\U0001F600-\U0001F64F"  # emoticons
+            u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+            u"\U0001F680-\U0001F6FF"  # transport & map symbols
+            u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+            "]+", 
+            flags=re.UNICODE
+            )
+            return emoji_pattern.findall(text) if text else []
+        df = mpd.read_json(file_path, lines=True)
+        print("✅ JSONL file read successfully.")
+
+        # Directly extract emojis and count frequencies without creating an intermediate column
+        emoji_counts = (
+            df['content']
+            .dropna()  # Drop null values directly
+            .map(lambda x: extract_emojis(x))  # Extract emojis
+            .explode()  # Explode to separate rows
+            .value_counts()  # Count occurrences
+            .reset_index()  # Reset index to get a DataFrame
+        )
+
+        # Ensure that the correct column names are set
+        emoji_counts.columns = ['emoji', 'count']  # Rename columns
+
+        # Get the top 10 emojis
+        top_emojis = emoji_counts.nlargest(10, 'count')  # Get the top 10 emojis
+
+        # Convert the result into a list of tuples (emoji, count)
+        result = list(zip(top_emojis['emoji'], top_emojis['count']))
+        return result
+
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+        return []
