@@ -1,15 +1,23 @@
+from typing import List, Tuple
+from datetime import datetime
 import dask.dataframe as dd
-import pandas as pd
-import json
 from dask.distributed import Client
-import time
-from memory_profiler import memory_usage
 
 # Inicia un cliente Dask (para paralelización)
 client = Client()
 
 # Define la función que procesa el archivo JSON con Dask
-def q1_memory(file_path: str):
+def q1_memory(file_path: str) -> List[Tuple[datetime.date, str]]:
+    """
+    Función que procesa un archivo JSONL para obtener las 10 fechas con más tweets
+    y el usuario con más tweets en esas fechas. Optimizada para ejecución en Dask.
+
+    Parameters:
+    - file_path (str): Ruta al archivo JSONL.
+
+    Returns:
+    - List[Tuple[datetime.date, str]]: Lista de tuplas con la fecha y el usuario con más tweets.
+    """
     try:
         # Lee el archivo JSONL
         df = dd.read_json(file_path, lines=True)
@@ -34,13 +42,18 @@ def q1_memory(file_path: str):
         for date in total_tweets['date_only']:
             top_user_df = grouped_df[grouped_df['date_only'] == date].nlargest(1, 'count')
             top_user = top_user_df['username_filled'].values[0]
-            tweet_count = top_user_df['count'].values[0]
-            result.append((date, top_user, tweet_count))
+            result.append((date, top_user))
 
-        result_df = pd.DataFrame(result, columns=["Fecha", "Usuario con más tweets", "Número de tweets"])
-        return result_df
+        return result
 
     except Exception as e:
         print(f"❌ Error inesperado: {e}")
-        return pd.DataFrame()
+        return []
 
+# Ejemplo de uso
+file_path = "ruta/al/archivo/farmers-protest-tweets-2021-2-4.json"
+result = q1_memory(file_path)
+
+# Mostrar resultados
+for date, user in result:
+    print(f"Fecha: {date}, Usuario con más tweets: {user}")
