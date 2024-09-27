@@ -1,59 +1,51 @@
+import modin.pandas as mpd
+import re
 from typing import List, Tuple
 from datetime import datetime
-import dask.dataframe as dd
-from dask.distributed import Client
 
-# Inicia un cliente Dask (para paralelización)
-client = Client()
 
-# Define la función que procesa el archivo JSON con Dask
 def q1_memory(file_path: str) -> List[Tuple[datetime.date, str]]:
+
+
     """
-    Función que procesa un archivo JSONL para obtener las 10 fechas con más tweets
-    y el usuario con más tweets en esas fechas. Optimizada para ejecución en Dask.
+    Retrieves the top 10 dates with the most tweets and the most active user for each date using Modin.
+    Optimized for execution with distributed processing using Modin.
 
     Parameters:
-    - file_path (str): Ruta al archivo JSONL.
+    - file_path (str): Path to the JSONL file containing Twitter data.
 
     Returns:
-    - List[Tuple[datetime.date, str]]: Lista de tuplas con la fecha y el usuario con más tweets.
+    - List[Tuple[datetime.date, str]]: List of tuples with date and top username.
     """
     try:
-        # Lee el archivo JSONL
-        df = dd.read_json(file_path, lines=True)
-        print("✅ Archivo JSONL leído exitosamente.")
+        # Leer el archivo JSONL usando Modin en lugar de pandas
+        df = mpd.read_json(file_path, lines=True)
+        print("✅ JSONL file read successfully.")
 
-        # Extrae el username y procesa la columna 'date'
-        df['username_filled'] = df['user'].map(lambda x: x.get('username', 'Unknown'), meta=('username_filled', 'object'))
-        df['date_parsed'] = dd.to_datetime(df['date'], format='%Y-%m-%dT%H:%M:%S%z', errors='coerce')
+        # Extraer 'username' de la columna 'user'
+        df['username_filled'] = df['user'].apply(
+            lambda x: x['username'] if isinstance(x, dict) and 'username' in x else 'Unknown'
+        )
+
+        # Convertir la columna 'date' a datetime y extraer solo la fecha
+        df['date_parsed'] = mpd.to_datetime(df['date'], format='%Y-%m-%dT%H:%M:%S%z', errors='coerce')
         df['date_only'] = df['date_parsed'].dt.date
 
-        # Agrupar por 'date_only' y 'username_filled', y contar tweets por usuario y fecha
-        grouped = df.groupby(['date_only', 'username_filled']).size().compute()
-
-        # Convertir el resultado a DataFrame de pandas para manipularlo
-        grouped_df = grouped.reset_index().rename(columns={0: 'count'})
+        # Agrupar por 'date_only' y 'username_filled' y contar tweets
+        grouped = df.groupby(['date_only', 'username_filled']).size().reset_index(name='count')
 
         # Agrupar por 'date_only' para obtener el total de tweets por fecha
-        total_tweets = grouped_df.groupby('date_only')['count'].sum().nlargest(10).reset_index()
-
+        total_tweets = grouped.groupby('date_only')['count'].sum().nlargest(10).reset_index()
+    
         # Para cada fecha, obtener el usuario con más tweets
         result = []
         for date in total_tweets['date_only']:
-            top_user_df = grouped_df[grouped_df['date_only'] == date].nlargest(1, 'count')
-            top_user = top_user_df['username_filled'].values[0]
+            top_user_df = grouped[grouped['date_only'] == date].nlargest(1, 'count')
+            top_user = top_user_df['username_filled'].values[0] if not top_user_df.empty else 'Unknown'
             result.append((date, top_user))
-
+                # Finalizar Ray al terminar
         return result
 
     except Exception as e:
-        print(f"❌ Error inesperado: {e}")
+        print(f"❌ Unexpected error: {e}")
         return []
-
-# Ejemplo de uso
-file_path = "ruta/al/archivo/farmers-protest-tweets-2021-2-4.json"
-result = q1_memory(file_path)
-
-# Mostrar resultados
-for date, user in result:
-    print(f"Fecha: {date}, Usuario con más tweets: {user}")

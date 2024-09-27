@@ -1,18 +1,13 @@
-import pandas as pd
+import modin.pandas as mpd
 import re
 from typing import List, Tuple
-import dask.dataframe as dd
-import re
-from typing import List, Tuple
-
-
 
 def q2_time(file_path: str) -> List[Tuple[str, int]]:
-    """Function that gets the top 10 most used emojis with their counts using Dask."""
+    """Function that gets the top 10 most used emojis with their counts using Modin."""
     try:
         def extract_emojis(text: str) -> List[str]:
-            """Función para extraer emojis de un texto"""
-            # Expresión regular para identificar emojis
+            """Function to extract emojis from text"""
+            # Regular expression to identify emojis
             emoji_pattern = re.compile(
                 "[" 
                 u"\U0001F600-\U0001F64F"  # emoticons
@@ -23,33 +18,23 @@ def q2_time(file_path: str) -> List[Tuple[str, int]]:
                 flags=re.UNICODE
             )
             return emoji_pattern.findall(text)
-        # Read the JSONL file with Dask specifying the number of partitions
-        df = dd.read_json(file_path, lines=True, dtype={'content': 'object'}, blocksize='16MB')
+
+        # Read the JSONL file with Modin
+        df = mpd.read_json(file_path, lines=True)
         print("✅ JSONL file read successfully.")
-        
+
         # Filter out null data
         df = df[df['content'].notnull()]
 
-        # Specify the expected output type for map_partitions
-        emoji_meta = pd.Series(dtype='object')  # This is the expected output type for the emojis
-
         # Extract emojis and count the frequency of each one
-        emoji_counts = (
-            df['content']
-            .map_partitions(lambda part: part.apply(lambda x: extract_emojis(x)), meta=emoji_meta)
-            .explode()
-            .value_counts()
-            .reset_index()
-        )
-
-        # Rename the columns
-        emoji_counts.columns = ['emoji', 'count']
+        df['emojis'] = df['content'].map(lambda x: extract_emojis(x))
+        emoji_counts = df.explode('emojis').groupby('emojis').size().reset_index(name='count')
 
         # Get the 10 most frequent emojis
-        top_emojis = emoji_counts.head(10)
+        top_emojis = emoji_counts.nlargest(10, 'count')
 
         # Convert to a list of tuples
-        result = list(zip(top_emojis['emoji'], top_emojis['count']))
+        result = list(zip(top_emojis['emojis'], top_emojis['count']))
 
         return result
 
