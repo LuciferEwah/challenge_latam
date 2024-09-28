@@ -4,7 +4,7 @@ from typing import List, Tuple
 
 
 def q2_memory(file_path: str) -> List[Tuple[str, int]]:
-    """Function to get the top 10 most used emojis with their counts using Modin."""
+    """Función para obtener los 10 emojis más utilizados con sus respectivos conteos utilizando Modin."""
     try:
         def extract_emojis(text: str) -> List[str]:
             """Function to extract emojis from text."""

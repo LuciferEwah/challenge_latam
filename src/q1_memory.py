@@ -5,17 +5,15 @@ from datetime import datetime
 
 
 def q1_memory(file_path: str) -> List[Tuple[datetime.date, str]]:
-
-
     """
-    Retrieves the top 10 dates with the most tweets and the most active user for each date using Modin.
-    Optimized for execution with distributed processing using Modin.
+    Recupera las 10 fechas con más tweets y el usuario más activo para cada fecha utilizando Modin.
+    Optimizado para ejecución con procesamiento distribuido usando Modin.
 
-    Parameters:
-    - file_path (str): Path to the JSONL file containing Twitter data.
+    Parámetros:
+    - file_path (str): Ruta al archivo JSONL que contiene los datos de Twitter.
 
-    Returns:
-    - List[Tuple[datetime.date, str]]: List of tuples with date and top username.
+    Retorna:
+    - List[Tuple[datetime.date, str]]: Lista de tuplas con la fecha y el usuario más activo.
     """
     try:
         # Leer el archivo JSONL usando Modin en lugar de pandas

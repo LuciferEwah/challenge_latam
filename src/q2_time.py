@@ -3,7 +3,7 @@ import re
 from typing import List, Tuple
 
 def q2_time(file_path: str) -> List[Tuple[str, int]]:
-    """Function that gets the top 10 most used emojis with their counts using Modin."""
+    """Función para obtener los 10 emojis más utilizados con sus respectivos conteos utilizando Modin."""
     try:
         def extract_emojis(text: str) -> List[str]:
             """Function to extract emojis from text"""
