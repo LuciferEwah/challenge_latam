@@ -5,13 +5,14 @@ from polars.exceptions import PolarsError
 
 def q3_time(file_path: str) -> List[Tuple[str, int]]:
     """
-    Optimized for memory using Polars: Returns the top 10 most mentioned users with their counts.
+    Optimizado para uso de memoria con Polars: Devuelve los 10 usuarios más mencionados con sus respectivos conteos.
 
-    Args:
-        file_path (str): Path to the JSONL file containing tweets.
+    Argumentos:
+        file_path (str): Ruta al archivo JSONL que contiene los tweets.
 
-    Returns:
-        List[Tuple[str, int]]: List of tuples with username and mention count.
+    Retorna:
+        List[Tuple[str, int]]: Lista de tuplas con el nombre de usuario y el número de menciones.
+
     """
     try:
         # Definir el esquema para asegurar tipos de datos consistentes
